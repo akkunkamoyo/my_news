@@ -37,7 +37,7 @@
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 14px; /* 各パーツの隙間を広げて誤タップを防止 */
         }
 
         /* 横スクロールエリア */
@@ -95,16 +95,20 @@
             overflow-x: auto;
             padding-bottom: 4px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
-            padding-top: 8px;
+            padding-top: 12px;
             -webkit-overflow-scrolling: touch;
-            min-height: 32px;
+            min-height: 36px;
         }
 
         .button-panel::-webkit-scrollbar {
             display: none;
         }
 
+        /* aタグのボタン化 */
         .word-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
             padding: 6px 14px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -112,12 +116,10 @@
             border-radius: 16px;
             font-size: 11px;
             font-weight: bold;
-            cursor: pointer;
+            text-decoration: none; /* リンクの下線を消す */
             white-space: nowrap;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+            cursor: pointer;
         }
 
         .word-btn.active {
@@ -132,6 +134,10 @@
             margin-left: 4px;
             opacity: 0.5;
             font-weight: normal;
+            color: var(--text-main);
+            text-decoration: none;
+            display: inline-block;
+            padding: 2px;
         }
 
         .delete-icon:hover {
@@ -139,277 +145,4 @@
             color: var(--danger-color);
         }
 
-        /* 下部：入力欄 */
-        .input-panel {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 6px;
-        }
-
-        .search-input {
-            flex: 1;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 8px;
-            padding: 6px 10px;
-            font-size: 11px;
-            color: var(--text-main);
-            outline: none;
-            box-sizing: border-box;
-        }
-
-        .search-input:focus {
-            border-color: var(--accent-color);
-        }
-
-        .add-btn {
-            padding: 6px 12px;
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .status-bar {
-            font-size: 9px;
-            color: var(--text-sub);
-            display: flex;
-            justify-content: space-between;
-            margin-top: -4px;
-        }
-    </style>
-</head>
-<body>
-
-<div class="widget-container" id="widget-box">
-    <div id="news-wrapper" class="news-scroll-wrapper">
-        <div class="news-card">
-            <div class="news-title-text">ニュースを準備中...🧭</div>
-            <div class="news-date">STANDBY</div>
-        </div>
-    </div>
-
-    <div class="button-panel" id="btn-panel"></div>
-
-    <div class="input-panel" id="form-panel" onclick="openInputSession(event)">
-        <input type="text" id="new-word-input" class="search-input" placeholder="ここをタップして新規登録..." readonly>
-        <button class="add-btn">登録</button>
-    </div>
-    
-    <div class="status-bar">
-        <span id="status">準備完了 🧭</span>
-        <span style="opacity: 0.5;">※×でボタン削除</span>
-    </div>
-</div>
-
-<script>
-    const defaultWords = ["ポケモン", "Xiaomi", "宇宙", "AI", "ゲーム"];
-    let currentKeyword = "ポケモン";
-
-    // 🏆 ウィジェット内の誤タップでブラウザに飛ばされるのを完全に防止する
-    document.getElementById('widget-box').addEventListener('click', function(e) {
-        // もしタップされたのがニュースのリンク、もしくは入力フォームエリア以外なら、絶対に「全画面遷移」を許可しない
-        const isLink = e.target.closest('.news-title-text');
-        const isForm = e.target.closest('#form-panel');
-        
-        if (!isLink && !isForm) {
-            e.stopPropagation(); // 外部への吹っ飛びをここで完全ブロック！
-        }
-    }, true);
-
-    window.onload = function() {
-        // ウィジェットではなく通常ブラウザで開いているかチェック
-        const isStandardBrowser = window.self === window.top;
-        if (isStandardBrowser) {
-            // 普通のブラウザで開いているときは入力可能にする
-            document.getElementById('new-word-input').removeAttribute('readonly');
-            document.getElementById('new-word-input').placeholder = "新しい単語を入力...";
-            document.getElementById('form-panel').onclick = null; // クリック時のブラウザ開き処理を解除
-        }
-
-        let savedWords = JSON.parse(localStorage.getItem('my_news_words'));
-        if (!savedWords || savedWords.length === 0) {
-            savedWords = defaultWords;
-            localStorage.setItem('my_news_words', JSON.stringify(savedWords));
-        }
-
-        currentKeyword = localStorage.getItem('last_selected_word') || savedWords[0];
-
-        renderButtons();
-        huntWidgetNews(currentKeyword);
-
-        // イベントバインド
-        const addButton = document.querySelector('.add-btn');
-        addButton.onclick = function(e) {
-            if (isStandardBrowser) {
-                e.preventDefault();
-                e.stopPropagation();
-                addNewButton();
-            }
-        };
-
-        document.getElementById('new-word-input').onkeydown = function(e) {
-            if (e.key === 'Enter' && isStandardBrowser) {
-                e.preventDefault();
-                e.stopPropagation();
-                addNewButton();
-            }
-        };
-    };
-
-    // 入力欄タップ時に一瞬だけブラウザを開き、追加しやすくする仕組み
-    function openInputSession(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        // 自身のGitHub URLを普通にブラウザで安全に開く（文字入力させるため）
-        window.open('https://akkunkamoyo.github.io/my_news/', '_blank');
-    }
-
-    function renderButtons() {
-        const panel = document.getElementById('btn-panel');
-        panel.innerHTML = '';
-
-        const savedWords = JSON.parse(localStorage.getItem('my_news_words')) || defaultWords;
-
-        savedWords.forEach(word => {
-            const btn = document.createElement('button');
-            btn.className = `word-btn ${word === currentKeyword ? 'active' : ''}`;
-            
-            btn.onclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation(); // 外部サイトへのジャンプをここで完全に防ぐ！
-                switchWord(word, btn);
-            };
-
-            btn.innerHTML = `
-                <span>${word}</span>
-                <span class="delete-icon" id="del-${word}">×</span>
-            `;
-            panel.appendChild(btn);
-
-            // 削除処理も外部ジャンプを強力ブロック
-            document.getElementById(`del-${word}`).onclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                deleteButton(word);
-            };
-        });
-    }
-
-    function switchWord(keyword, btnElement) {
-        const buttons = document.querySelectorAll('.word-btn');
-        buttons.forEach(btn => btn.classList.remove('active'));
-        btnElement.classList.add('active');
-
-        currentKeyword = keyword;
-        localStorage.setItem('last_selected_word', keyword);
-        huntWidgetNews(keyword);
-    }
-
-    function addNewButton() {
-        const input = document.getElementById('new-word-input');
-        const word = input.value.trim();
-
-        if (!word) return;
-
-        let savedWords = JSON.parse(localStorage.getItem('my_news_words')) || [];
-        
-        if (savedWords.includes(word)) {
-            input.value = '';
-            return;
-        }
-
-        savedWords.push(word);
-        localStorage.setItem('my_news_words', JSON.stringify(savedWords));
-        input.value = '';
-
-        currentKeyword = word;
-        localStorage.setItem('last_selected_word', word);
-        
-        renderButtons();
-        huntWidgetNews(word);
-    }
-
-    function deleteButton(word) {
-        if (!confirm(`「${word}」ボタンを削除しますか？`)) return;
-
-        let savedWords = JSON.parse(localStorage.getItem('my_news_words')) || [];
-        savedWords = savedWords.filter(w => w !== word);
-        localStorage.setItem('my_news_words', JSON.stringify(savedWords));
-
-        if (currentKeyword === word) {
-            currentKeyword = savedWords[0] || '';
-            localStorage.setItem('last_selected_word', currentKeyword);
-        }
-
-        renderButtons();
-        if (currentKeyword) {
-            huntWidgetNews(currentKeyword);
-        } else {
-            document.getElementById('news-wrapper').innerHTML = `
-                <div class="news-card">
-                    <div class="news-title-text">新ボタンを追加してワードを登録してね！</div>
-                    <div class="news-date">EMPTY</div>
-                </div>
-            `;
-            document.getElementById('status').textContent = '登録なし';
-        }
-    }
-
-    // 🚀 日本語に100%対応した最強RSSデコーダー
-    async function huntWidgetNews(keyword) {
-        const wrapper = document.getElementById('news-wrapper');
-        const status = document.getElementById('status');
-
-        status.textContent = `「${keyword}」を読み込み中...`;
-
-        try {
-            const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
-            // 信頼性世界一のCORS/RSSプロキシで瞬時にJSON化
-            const apiLink = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
-
-            const response = await fetch(apiLink);
-            const data = await response.json();
-
-            if (data && data.status === 'ok' && data.items && data.items.length > 0) {
-                status.textContent = `「${keyword}」表示中`;
-                wrapper.innerHTML = '';
-
-                const maxItems = Math.min(data.items.length, 12);
-                for (let i = 0; i < maxItems; i++) {
-                    const item = data.items[i];
-                    const title = item.title;
-                    const link = item.link;
-                    const pubDateText = item.pubDate;
-
-                    const card = document.createElement('div');
-                    card.className = 'news-card';
-
-                    const date = new Date(pubDateText);
-                    const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
-
-                    // ニュースタイトルをタップした時はブラウザに飛び、それ以外のタップは完全防止
-                    card.innerHTML = `
-                        <div class="news-title-text" onclick="window.open('${link}', '_blank')">${title}</div>
-                        <div class="news-date">📅 ${formattedDate}</div>
-                    `;
-                    wrapper.appendChild(card);
-                }
-            } else {
-                status.textContent = '取得エラー（別のワードをお試しください）';
-            }
-        } catch (error) {
-            console.error(error);
-            status.textContent = '再試行してください';
-        }
-    }
-</script>
-
-</body>
-</html>
+        /* 下部：入力・登録エリア（別々に完全に独立）
