@@ -6,9 +6,9 @@
     <title>マイ・ニュース・ウィジェット</title>
     <style>
         :root {
-            --bg-color: #111827;
+            --bg-color: #111827; /* 高級感のあるダークモード */
             --card-bg: #1f2937;
-            --accent-color: #10b981;
+            --accent-color: #10b981; /* グリーン */
             --text-main: #f9fafb;
             --text-sub: #9ca3af;
         }
@@ -26,6 +26,7 @@
             touch-action: manipulation;
         }
 
+        /* ウィジェット全体の枠 */
         .widget-container {
             width: 100%;
             max-width: 480px;
@@ -39,6 +40,7 @@
             gap: 10px;
         }
 
+        /* 横スクロールエリア */
         .news-scroll-wrapper {
             display: flex;
             gap: 8px;
@@ -52,6 +54,7 @@
             display: none;
         }
 
+        /* ニュースカード */
         .news-card {
             flex: 0 0 130px;
             scroll-snap-align: start;
@@ -66,7 +69,7 @@
             box-sizing: border-box;
         }
 
-        /* aタグではなく、ウィジェットアプリに「リンク」と誤認されない普通のテキストにする */
+        /* タイトルテキスト */
         .news-title-text {
             font-size: 10px;
             font-weight: bold;
@@ -77,6 +80,7 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
             cursor: pointer;
+            text-decoration: none;
         }
 
         .news-date {
@@ -85,40 +89,40 @@
             margin-top: 2px;
         }
 
-        .control-panel {
+        /* 下部のボタンエリア（横スクロールでボタンを並べる） */
+        .button-panel {
             display: flex;
             gap: 6px;
-            align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            overflow-x: auto;
             padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            -webkit-overflow-scrolling: touch;
         }
 
-        .search-input {
-            flex: 1;
+        .button-panel::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* 丸い切替ボタン */
+        .word-btn {
+            padding: 6px 14px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 8px;
-            padding: 6px 10px;
-            font-size: 11px;
             color: var(--text-main);
-            outline: none;
-            box-sizing: border-box;
-        }
-
-        .search-input:focus {
-            border-color: var(--accent-color);
-        }
-
-        .search-btn {
-            padding: 6px 12px;
-            background: var(--accent-color);
-            color: white;
-            border: none;
-            border-radius: 8px;
+            border-radius: 16px;
             font-size: 11px;
             font-weight: bold;
             cursor: pointer;
             white-space: nowrap;
+            transition: all 0.2s;
+        }
+
+        /* アクティブな（今選ばれている）ボタン */
+        .word-btn.active {
+            background: var(--accent-color);
+            border-color: var(--accent-color);
+            color: white;
+            box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
         }
 
         .status-bar {
@@ -131,97 +135,92 @@
 </head>
 <body>
 
-<div class="widget-container" id="main-widget">
+<div class="widget-container">
     <div id="news-wrapper" class="news-scroll-wrapper">
         <div class="news-card">
-            <div class="news-title-text">ワードを入れて「検索」を押してね！</div>
+            <div class="news-title-text">読み込み中...🧭</div>
             <div class="news-date">STANDBY</div>
         </div>
     </div>
 
-    <div class="control-panel">
-        <input type="text" id="widget-search-input" class="search-input" placeholder="例: ポケモン, AI" value="宇宙ロケット" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-        <button class="search-btn" id="search-btn" onclick="huntWidgetNews(event)">検索</button>
+    <div class="button-panel" id="btn-panel">
+        <button class="word-btn active" onclick="switchWord('ポケモン', this)">ポケモン</button>
+        <button class="word-btn" onclick="switchWord('Xiaomi 14T Pro', this)">Xiaomi</button>
+        <button class="word-btn" onclick="switchWord('宇宙開発', this)">宇宙</button>
+        <button class="word-btn" onclick="switchWord('AIニュース', this)">AI</button>
+        <button class="word-btn" onclick="switchWord('ゲーム最新情報', this)">ゲーム</button>
     </div>
     <div id="status" class="status-bar">準備完了 🧭</div>
 </div>
 
 <script>
-    // アプリ側への勝手な画面遷移イベントをすべて強制キャンセルするパッチ
-    document.addEventListener('click', function(e) {
-        // 検索窓や検索ボタン、スライド操作以外へのクリックで外に飛ばされるのを防ぐ
-        if (e.target.tagName === 'A') {
-            e.preventDefault();
-            window.open(e.target.href, '_blank'); // 新しいタブで安全に開く
-        }
-    }, { passive: false });
+    let currentKeyword = "ポケモン";
 
+    // 起動時に「ポケモン」を自動検索
     window.onload = function() {
-        // 最後に検索した言葉があれば復元する（LocalStorage）
-        const lastWord = localStorage.getItem('last_search_word') || "宇宙ロケット";
-        document.getElementById('widget-search-input').value = lastWord;
-        huntWidgetNews();
+        // もし前回最後に見ていたワードがあれば復元
+        const lastWord = localStorage.getItem('last_selected_word') || "ポケモン";
+        
+        // アクティブボタンの見た目を復元
+        const buttons = document.querySelectorAll('.word-btn');
+        buttons.forEach(btn => {
+            if (btn.textContent === lastWord || (lastWord === "Xiaomi 14T Pro" && btn.textContent === "Xiaomi") || (lastWord === "宇宙開発" && btn.textContent === "宇宙") || (lastWord === "AIニュース" && btn.textContent === "AI") || (lastWord === "ゲーム最新情報" && btn.textContent === "ゲーム")) {
+                buttons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentKeyword = lastWord;
+            }
+        });
+
+        huntWidgetNews(currentKeyword);
     };
 
-    async function huntWidgetNews(event) {
-        if (event) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
+    // ボタンをタップした時にワードを切り替える関数
+    function switchWord(keyword, btnElement) {
+        // ボタンの見た目を切り替え
+        const buttons = document.querySelectorAll('.word-btn');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        btnElement.classList.add('active');
 
-        const input = document.getElementById('widget-search-input');
+        // 検索実行
+        currentKeyword = keyword;
+        localStorage.setItem('last_selected_word', keyword);
+        huntWidgetNews(keyword);
+    }
+
+    async function huntWidgetNews(keyword) {
         const wrapper = document.getElementById('news-wrapper');
         const status = document.getElementById('status');
-        
-        const keyword = input.value.trim();
-
-        if (!keyword) {
-            status.textContent = 'ワードを入力してね！';
-            return;
-        }
 
         status.textContent = `「${keyword}」を探索中...`;
-        localStorage.setItem('last_search_word', keyword);
 
         try {
+            // GoogleニュースのRSS
             const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
-            const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
+            
+            // 日本語の文字化け・エラーを防ぐ高精度なRSS→JSONデコーダーに切り替え
+            const rss2jsonUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
             const response = await fetch(rss2jsonUrl);
-            const data = await response.json();
+            const rawData = await response.json();
+            
+            // XMLデータをパースする
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(rawData.contents, "text/xml");
+            const items = xmlDoc.getElementsByTagName("item");
 
-            if (data.status === 'ok' && data.items.length > 0) {
-                status.textContent = `「${keyword}」のニュースを取得！`;
+            if (items.length > 0) {
+                status.textContent = `「${keyword}」の最新ニュースを表示中`;
                 wrapper.innerHTML = '';
 
-                data.items.forEach(item => {
+                // 最大15件取得してカード化
+                const maxItems = Math.min(items.length, 15);
+                for (let i = 0; i < maxItems; i++) {
+                    const item = items[i];
+                    const title = item.getElementsByTagName("title")[0].textContent;
+                    const link = item.getElementsByTagName("link")[0].textContent;
+                    const pubDateText = item.getElementsByTagName("pubDate")[0].textContent;
+
                     const card = document.createElement('div');
                     card.className = 'news-card';
 
-                    const date = new Date(item.pubDate);
-                    const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
-
-                    // aタグを排除し、クリック時に直接安全にURLを開くJavaScriptを仕込む
-                    card.innerHTML = `
-                        <div class="news-title-text" onclick="safeOpen('${item.link}')">${item.title}</div>
-                        <div class="news-date">📅 ${formattedDate}</div>
-                    `;
-                    wrapper.appendChild(card);
-                });
-            } else {
-                status.textContent = '見つかりませんでした。';
-            }
-        } catch (error) {
-            console.error(error);
-            status.textContent = '通信エラー';
-        }
-    }
-
-    // ウィジェットアプリの画面遷移バグを回避して安全にブラウザでニュースを開く関数
-    function safeOpen(url) {
-        window.open(url, '_blank');
-    }
-</script>
-
-</body>
-</html>
+                    const date = new Date(pubDateText);
