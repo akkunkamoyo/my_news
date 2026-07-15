@@ -1,14 +1,14 @@
-                <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>マイ・ニュース・ウィジェット</title>
     <style>
         :root {
-            --bg-color: #111827; /* 高級感のあるダークモード */
+            --bg-color: #111827;
             --card-bg: #1f2937;
-            --accent-color: #10b981; /* グリーン */
+            --accent-color: #10b981;
             --text-main: #f9fafb;
             --text-sub: #9ca3af;
         }
@@ -23,9 +23,9 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
+            touch-action: manipulation;
         }
 
-        /* ウィジェット全体の枠 */
         .widget-container {
             width: 100%;
             max-width: 480px;
@@ -39,7 +39,6 @@
             gap: 10px;
         }
 
-        /* 横スクロールエリア */
         .news-scroll-wrapper {
             display: flex;
             gap: 8px;
@@ -50,10 +49,9 @@
         }
 
         .news-scroll-wrapper::-webkit-scrollbar {
-            display: none; /* スクロールバーは非表示 */
+            display: none;
         }
 
-        /* ニュースカード */
         .news-card {
             flex: 0 0 130px;
             scroll-snap-align: start;
@@ -68,6 +66,7 @@
             box-sizing: border-box;
         }
 
+        /* aタグではなく、ウィジェットアプリに「リンク」と誤認されない普通のテキストにする */
         .news-title-text {
             font-size: 10px;
             font-weight: bold;
@@ -77,7 +76,7 @@
             -webkit-line-clamp: 4;
             -webkit-box-orient: vertical;
             overflow: hidden;
-            text-decoration: none;
+            cursor: pointer;
         }
 
         .news-date {
@@ -86,7 +85,6 @@
             margin-top: 2px;
         }
 
-        /* 下部の検索・操作エリア */
         .control-panel {
             display: flex;
             gap: 6px;
@@ -95,7 +93,6 @@
             padding-top: 8px;
         }
 
-        /* ホーム画面でも入力しやすい薄型入力欄 */
         .search-input {
             flex: 1;
             background: rgba(255, 255, 255, 0.05);
@@ -112,7 +109,6 @@
             border-color: var(--accent-color);
         }
 
-        /* 検索ボタン */
         .search-btn {
             padding: 6px 12px;
             background: var(--accent-color);
@@ -125,10 +121,6 @@
             white-space: nowrap;
         }
 
-        .search-btn:active {
-            transform: scale(0.95);
-        }
-
         .status-bar {
             font-size: 9px;
             color: var(--text-sub);
@@ -139,28 +131,44 @@
 </head>
 <body>
 
-<div class="widget-container">
+<div class="widget-container" id="main-widget">
     <div id="news-wrapper" class="news-scroll-wrapper">
         <div class="news-card">
-            <div class="news-title-text">下の入力欄にワードを入力して「検索」を押してね！</div>
+            <div class="news-title-text">ワードを入れて「検索」を押してね！</div>
             <div class="news-date">STANDBY</div>
         </div>
     </div>
 
     <div class="control-panel">
-        <input type="text" id="widget-search-input" class="search-input" placeholder="例: ポケモン, AI, ガジェット" value="宇宙ロケット">
-        <button class="search-btn" onclick="huntWidgetNews()">検索</button>
+        <input type="text" id="widget-search-input" class="search-input" placeholder="例: ポケモン, AI" value="宇宙ロケット" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button class="search-btn" id="search-btn" onclick="huntWidgetNews(event)">検索</button>
     </div>
     <div id="status" class="status-bar">準備完了 🧭</div>
 </div>
 
 <script>
-    // 起動時に自動で初期ワード「宇宙ロケット」を検索
+    // アプリ側への勝手な画面遷移イベントをすべて強制キャンセルするパッチ
+    document.addEventListener('click', function(e) {
+        // 検索窓や検索ボタン、スライド操作以外へのクリックで外に飛ばされるのを防ぐ
+        if (e.target.tagName === 'A') {
+            e.preventDefault();
+            window.open(e.target.href, '_blank'); // 新しいタブで安全に開く
+        }
+    }, { passive: false });
+
     window.onload = function() {
+        // 最後に検索した言葉があれば復元する（LocalStorage）
+        const lastWord = localStorage.getItem('last_search_word') || "宇宙ロケット";
+        document.getElementById('widget-search-input').value = lastWord;
         huntWidgetNews();
     };
 
-    async function huntWidgetNews() {
+    async function huntWidgetNews(event) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
         const input = document.getElementById('widget-search-input');
         const wrapper = document.getElementById('news-wrapper');
         const status = document.getElementById('status');
@@ -173,6 +181,7 @@
         }
 
         status.textContent = `「${keyword}」を探索中...`;
+        localStorage.setItem('last_search_word', keyword);
 
         try {
             const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
@@ -182,8 +191,8 @@
             const data = await response.json();
 
             if (data.status === 'ok' && data.items.length > 0) {
-                status.textContent = `「${keyword}」の最新ニュースを取得！`;
-                wrapper.innerHTML = ''; // クリア
+                status.textContent = `「${keyword}」のニュースを取得！`;
+                wrapper.innerHTML = '';
 
                 data.items.forEach(item => {
                     const card = document.createElement('div');
@@ -192,8 +201,9 @@
                     const date = new Date(item.pubDate);
                     const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
 
+                    // aタグを排除し、クリック時に直接安全にURLを開くJavaScriptを仕込む
                     card.innerHTML = `
-                        <a href="${item.link}" target="_blank" class="news-title-text">${item.title}</a>
+                        <div class="news-title-text" onclick="safeOpen('${item.link}')">${item.title}</div>
                         <div class="news-date">📅 ${formattedDate}</div>
                     `;
                     wrapper.appendChild(card);
@@ -205,6 +215,11 @@
             console.error(error);
             status.textContent = '通信エラー';
         }
+    }
+
+    // ウィジェットアプリの画面遷移バグを回避して安全にブラウザでニュースを開く関数
+    function safeOpen(url) {
+        window.open(url, '_blank');
     }
 </script>
 
