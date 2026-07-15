@@ -9,8 +9,7 @@
             --bg-color: #111827;
             --card-bg: #1f2937;
             --accent-color: #10b981;
-            --danger-color: #ef4444;
-            --manage-color: #3b82f6; /* 青色 */
+            --manage-color: #3b82f6;
             --text-main: #f9fafb;
             --text-sub: #9ca3af;
         }
@@ -28,7 +27,7 @@
             touch-action: manipulation;
         }
 
-        .widget-container {
+        .widget-box-v3 {
             width: 100%;
             max-width: 480px;
             background: var(--card-bg);
@@ -90,7 +89,7 @@
         }
 
         /* ボタン一覧エリア */
-        .button-panel {
+        .button-panel-v3 {
             display: flex;
             gap: 6px;
             overflow-x: auto;
@@ -102,11 +101,12 @@
             align-items: center;
         }
 
-        .button-panel::-webkit-scrollbar {
+        .button-panel-v3::-webkit-scrollbar {
             display: none;
         }
 
-        .word-btn-custom {
+        /* ブラウザに絶対にボタンと誤認させないプレーンなdivボタン */
+        .word-item-v3 {
             padding: 6px 14px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -123,15 +123,15 @@
             user-select: none;
         }
 
-        .word-btn-custom.active {
+        .word-item-v3.active {
             background: var(--accent-color);
             border-color: var(--accent-color);
             color: white;
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
         }
 
-        /* ⚙️ボタン管理専用のデザイン */
-        .manage-btn-custom {
+        /* ⚙️ボタン設定専用のデザイン */
+        .setting-trigger-v3 {
             padding: 6px 14px;
             background: var(--manage-color);
             border: 1px solid var(--manage-color);
@@ -153,9 +153,9 @@
             font-weight: normal;
         }
 
-        /* ブラウザ表示の時だけ表示される設定用パネル */
-        .admin-panel {
-            display: none; /* デフォルト非表示、ブラウザ起動時のみ表示 */
+        /* ブラウザ起動時のみ表示される追加用パネル */
+        .browser-only-admin-panel {
+            display: none; /* ウィジェット表示時は完全に消去 */
             gap: 6px;
             align-items: center;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -178,7 +178,7 @@
             border-color: var(--accent-color);
         }
 
-        .add-btn-custom {
+        .add-btn-v3 {
             padding: 6px 12px;
             background: var(--accent-color);
             color: white;
@@ -201,7 +201,7 @@
 </head>
 <body>
 
-<div class="widget-container" id="widget-box">
+<div class="widget-box-v3" id="widget-box">
     <div id="news-wrapper" class="news-scroll-wrapper">
         <div class="news-card">
             <div class="news-title-text">ニュースを取得中...🧭</div>
@@ -209,11 +209,11 @@
         </div>
     </div>
 
-    <div class="button-panel" id="btn-panel"></div>
+    <div class="button-panel-v3" id="btn-panel"></div>
 
-    <div class="admin-panel" id="admin-panel">
+    <div class="browser-only-admin-panel" id="admin-panel">
         <input type="text" id="new-word-input" class="search-input" placeholder="新しい単語を入力...">
-        <div class="add-btn-custom" onclick="addNewButton()">追加</div>
+        <div class="add-btn-v3" onclick="addNewButton()">追加</div>
     </div>
     
     <div class="status-bar">
@@ -231,18 +231,17 @@
         isStandardBrowser = window.self === window.top;
 
         if (isStandardBrowser) {
-            // ブラウザ表示のとき：管理用フォームを表示し、登録可能にする
+            // ブラウザ表示のときのみ、入力欄と追加ボタンを表示
             document.getElementById('admin-panel').style.display = "flex";
             document.getElementById('help-text').textContent = "※×でボタン削除";
             
-            // エンターキーで追加できるようにする
             document.getElementById('new-word-input').onkeydown = function(e) {
                 if (e.key === 'Enter') {
                     addNewButton();
                 }
             };
         } else {
-            // ウィジェット表示のとき：管理フォームは完全非表示
+            // ウィジェット表示のとき：入力欄を完全に画面から消去
             document.getElementById('admin-panel').style.display = "none";
             document.getElementById('help-text').textContent = "⚙️から登録/削除";
         }
@@ -265,10 +264,10 @@
 
         const savedWords = JSON.parse(localStorage.getItem('my_news_words')) || defaultWords;
 
-        // 1. お気に入りワードボタンを描画
+        // 1. お気に入りワードボタン
         savedWords.forEach(word => {
             const btn = document.createElement('div');
-            btn.className = `word-btn-custom ${word === currentKeyword ? 'active' : ''}`;
+            btn.className = `word-item-v3 ${word === currentKeyword ? 'active' : ''}`;
             
             btn.onclick = function(e) {
                 if (!isStandardBrowser) {
@@ -278,7 +277,7 @@
                 switchWord(word, btn);
             };
 
-            // ブラウザ版の場合のみ、ボタンの横に直接「×」を表示して削除しやすくする
+            // ブラウザ表示のみ「×」ボタンを表示
             if (isStandardBrowser) {
                 btn.innerHTML = `
                     <span>${word}</span>
@@ -290,7 +289,6 @@
             
             panel.appendChild(btn);
 
-            // 削除ボタンのイベント（ブラウザ版のみ）
             if (isStandardBrowser) {
                 document.getElementById(`del-${word}`).onclick = function(e) {
                     e.stopPropagation();
@@ -299,19 +297,18 @@
             }
         });
 
-        // 2. 「⚙️ ボタン管理」を追加（ウィジェット表示、ブラウザ表示問わず表示）
+        // 2. 「⚙️ ボタン設定」を右端に追加
         const manageBtn = document.createElement('div');
-        manageBtn.className = "manage-btn-custom";
-        manageBtn.innerHTML = "⚙️ ボタン管理";
+        manageBtn.className = "setting-trigger-v3";
+        manageBtn.innerHTML = "⚙️ ボタン設定";
         manageBtn.onclick = function(e) {
-            // タップした瞬間に新規タブ/ブラウザで自身のGitHub Pagesを開く
             window.open('https://akkunkamoyo.github.io/my_news/', '_blank');
         };
         panel.appendChild(manageBtn);
     }
 
     function switchWord(keyword, btnElement) {
-        const buttons = document.querySelectorAll('.word-btn-custom');
+        const buttons = document.querySelectorAll('.word-item-v3');
         buttons.forEach(btn => btn.classList.remove('active'));
         btnElement.classList.add('active');
 
@@ -362,7 +359,7 @@
         } else {
             document.getElementById('news-wrapper').innerHTML = `
                 <div class="news-card">
-                    <div class="news-title-text">管理画面からワードを登録してください！</div>
+                    <div class="news-title-text">設定画面からワードを登録してください！</div>
                     <div class="news-date">EMPTY</div>
                 </div>
             `;
