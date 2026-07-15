@@ -9,6 +9,7 @@
             --bg-color: #111827; /* 高級感のあるダークモード */
             --card-bg: #1f2937;
             --accent-color: #10b981; /* グリーン */
+            --danger-color: #ef4444; /* レッド */
             --text-main: #f9fafb;
             --text-sub: #9ca3af;
         }
@@ -40,7 +41,7 @@
             gap: 10px;
         }
 
-        /* 横スクロールエリア */
+        /* 横スクロールニュースエリア */
         .news-scroll-wrapper {
             display: flex;
             gap: 8px;
@@ -69,7 +70,6 @@
             box-sizing: border-box;
         }
 
-        /* タイトルテキスト */
         .news-title-text {
             font-size: 10px;
             font-weight: bold;
@@ -89,13 +89,14 @@
             margin-top: 2px;
         }
 
-        /* 下部のボタンエリア（横スクロールでボタンを並べる） */
+        /* 登録したボタンが並ぶエリア */
         .button-panel {
             display: flex;
             gap: 6px;
             overflow-x: auto;
-            padding-top: 8px;
+            padding-bottom: 4px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 8px;
             -webkit-overflow-scrolling: touch;
         }
 
@@ -103,7 +104,7 @@
             display: none;
         }
 
-        /* 丸い切替ボタン */
+        /* カスタムボタンの基本デザイン */
         .word-btn {
             padding: 6px 14px;
             background: rgba(255, 255, 255, 0.05);
@@ -115,9 +116,11 @@
             cursor: pointer;
             white-space: nowrap;
             transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
-        /* アクティブな（今選ばれている）ボタン */
         .word-btn.active {
             background: var(--accent-color);
             border-color: var(--accent-color);
@@ -125,10 +128,64 @@
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
         }
 
+        /* ボタン長押しや横に置く「×」で削除できる仕組み */
+        .delete-icon {
+            font-size: 9px;
+            margin-left: 2px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .delete-icon:hover {
+            opacity: 1;
+            color: var(--danger-color);
+        }
+
+        /* 最下部：新しいワードの追加用フォーム */
+        .input-panel {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 6px;
+        }
+
+        .search-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 11px;
+            color: var(--text-main);
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        .add-btn {
+            padding: 6px 12px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .add-btn:active {
+            transform: scale(0.95);
+        }
+
         .status-bar {
             font-size: 9px;
             color: var(--text-sub);
-            text-align: right;
+            display: flex;
+            justify-content: space-between;
             margin-top: -4px;
         }
     </style>
@@ -144,49 +201,143 @@
     </div>
 
     <div class="button-panel" id="btn-panel">
-        <button class="word-btn active" onclick="switchWord('ポケモン', this)">ポケモン</button>
-        <button class="word-btn" onclick="switchWord('Xiaomi 14T Pro', this)">Xiaomi</button>
-        <button class="word-btn" onclick="switchWord('宇宙開発', this)">宇宙</button>
-        <button class="word-btn" onclick="switchWord('AIニュース', this)">AI</button>
-        <button class="word-btn" onclick="switchWord('ゲーム最新情報', this)">ゲーム</button>
+        </div>
+
+    <div class="input-panel">
+        <input type="text" id="new-word-input" class="search-input" placeholder="追加したいワードを入力..." autocomplete="off">
+        <button class="add-btn" onclick="addNewButton()">ボタン追加</button>
     </div>
-    <div id="status" class="status-bar">準備完了 🧭</div>
+    
+    <div class="status-bar">
+        <span id="status">準備完了 🧭</span>
+        <span style="opacity: 0.5;">※長押しやタップで削除可</span>
+    </div>
 </div>
 
 <script>
+    // デフォルトの検索キーワードリスト（最初に何もない時に用意する用）
+    const defaultWords = ["ポケモン", "Xiaomi", "宇宙", "AI"];
+    
+    // 現在選択中のキーワード
     let currentKeyword = "ポケモン";
 
-    // 起動時に「ポケモン」を自動検索
     window.onload = function() {
-        // もし前回最後に見ていたワードがあれば復元
-        const lastWord = localStorage.getItem('last_selected_word') || "ポケモン";
-        
-        // アクティブボタンの見た目を復元
-        const buttons = document.querySelectorAll('.word-btn');
-        buttons.forEach(btn => {
-            if (btn.textContent === lastWord || (lastWord === "Xiaomi 14T Pro" && btn.textContent === "Xiaomi") || (lastWord === "宇宙開発" && btn.textContent === "宇宙") || (lastWord === "AIニュース" && btn.textContent === "AI") || (lastWord === "ゲーム最新情報" && btn.textContent === "ゲーム")) {
-                buttons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentKeyword = lastWord;
-            }
-        });
+        // 保存されているキーワードリストを取得（なければデフォルト）
+        let savedWords = JSON.parse(localStorage.getItem('my_news_words'));
+        if (!savedWords || savedWords.length === 0) {
+            savedWords = defaultWords;
+            localStorage.setItem('my_news_words', JSON.stringify(savedWords));
+        }
 
+        // 最後に選択していたキーワードを取得
+        currentKeyword = localStorage.getItem('last_selected_word') || savedWords[0];
+
+        // ボタンの描画とニュースの取得
+        renderButtons();
         huntWidgetNews(currentKeyword);
     };
 
-    // ボタンをタップした時にワードを切り替える関数
+    // 保存されているキーワードからボタンを画面に描画する
+    function renderButtons() {
+        const panel = document.getElementById('btn-panel');
+        panel.innerHTML = ''; // 一旦クリア
+
+        const savedWords = JSON.parse(localStorage.getItem('my_news_words')) || defaultWords;
+
+        savedWords.forEach(word => {
+            const btn = document.createElement('button');
+            btn.className = `word-btn ${word === currentKeyword ? 'active' : ''}`;
+            
+            // ボタンタップで検索切り替え
+            btn.addEventListener('click', function() {
+                switchWord(word, btn);
+            });
+
+            // ボタンの中身（テキスト ＋ 削除用×ボタン）
+            btn.innerHTML = `
+                <span>${word}</span>
+                <span class="delete-icon" onclick="deleteButton(event, '${word}')">×</span>
+            `;
+            panel.appendChild(btn);
+        });
+    }
+
+    // ボタンをタップして切り替える
     function switchWord(keyword, btnElement) {
-        // ボタンの見た目を切り替え
         const buttons = document.querySelectorAll('.word-btn');
         buttons.forEach(btn => btn.classList.remove('active'));
         btnElement.classList.add('active');
 
-        // 検索実行
         currentKeyword = keyword;
         localStorage.setItem('last_selected_word', keyword);
         huntWidgetNews(keyword);
     }
 
+    // 新しいボタンを追加する
+    function addNewButton() {
+        const input = document.getElementById('new-word-input');
+        const word = input.value.trim();
+
+        if (!word) {
+            alert('キーワードを入力してください！');
+            return;
+        }
+
+        let savedWords = JSON.parse(localStorage.getItem('my_news_words')) || [];
+        
+        // 重複チェック
+        if (savedWords.includes(word)) {
+            alert('そのボタンは既に追加されています！');
+            return;
+        }
+
+        // 保存リストに追加
+        savedWords.push(word);
+        localStorage.setItem('my_news_words', JSON.stringify(savedWords));
+
+        // 入力をクリア
+        input.value = '';
+
+        // ボタンを再描画して、新しく追加したワードを自動検索
+        currentKeyword = word;
+        localStorage.setItem('last_selected_word', word);
+        renderButtons();
+        huntWidgetNews(word);
+    }
+
+    // ボタンを削除する
+    function deleteButton(event, word) {
+        event.stopPropagation(); // ボタン自体のタップ（切替）が同時に発生するのを防ぐ
+
+        if (!confirm(`「${word}」のボタンを削除しますか？`)) {
+            return;
+        }
+
+        let savedWords = JSON.parse(localStorage.getItem('my_news_words')) || [];
+        savedWords = savedWords.filter(w => w !== word); // 指定されたワードを削除
+        localStorage.setItem('my_news_words', JSON.stringify(savedWords));
+
+        // もし削除したものが現在アクティブだった場合、別のワードに変える
+        if (currentKeyword === word) {
+            currentKeyword = savedWords[0] || '';
+            localStorage.setItem('last_selected_word', currentKeyword);
+        }
+
+        renderButtons();
+        if (currentKeyword) {
+            huntWidgetNews(currentKeyword);
+        } else {
+            document.getElementById('news-wrapper').innerHTML = `
+                <div class="news-card">
+                    <div class="news-title-text">ボタンを追加してニュースを検索してね！</div>
+                    <div class="news-date">EMPTY</div>
+                </div>
+            `;
+            document.getElementById('status').textContent = 'ボタンが登録されていません';
+        }
+    }
+
+    // ニュース取得ロジック（日本語バグ修正済みルート）
     async function huntWidgetNews(keyword) {
         const wrapper = document.getElementById('news-wrapper');
         const status = document.getElementById('status');
@@ -194,25 +345,20 @@
         status.textContent = `「${keyword}」を探索中...`;
 
         try {
-            // GoogleニュースのRSS
             const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
-            
-            // 日本語の文字化け・エラーを防ぐ高精度なRSS→JSONデコーダーに切り替え
             const rss2jsonUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
 
             const response = await fetch(rss2jsonUrl);
             const rawData = await response.json();
             
-            // XMLデータをパースする
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(rawData.contents, "text/xml");
             const items = xmlDoc.getElementsByTagName("item");
 
             if (items.length > 0) {
-                status.textContent = `「${keyword}」の最新ニュースを表示中`;
+                status.textContent = `「${keyword}」を表示中`;
                 wrapper.innerHTML = '';
 
-                // 最大15件取得してカード化
                 const maxItems = Math.min(items.length, 15);
                 for (let i = 0; i < maxItems; i++) {
                     const item = items[i];
@@ -224,3 +370,23 @@
                     card.className = 'news-card';
 
                     const date = new Date(pubDateText);
+                    const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
+
+                    card.innerHTML = `
+                        <div class="news-title-text" onclick="window.open('${link}', '_blank')">${title}</div>
+                        <div class="news-date">📅 ${formattedDate}</div>
+                    `;
+                    wrapper.appendChild(card);
+                }
+            } else {
+                status.textContent = '見つかりませんでした。';
+            }
+        } catch (error) {
+            console.error(error);
+            status.textContent = '通信エラー';
+        }
+    }
+</script>
+
+</body>
+</html>
