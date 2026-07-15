@@ -37,7 +37,7 @@
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 14px; /* 各パーツの隙間を広げて誤タップを防止 */
+            gap: 10px;
         }
 
         /* 横スクロールエリア */
@@ -95,20 +95,17 @@
             overflow-x: auto;
             padding-bottom: 4px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
-            padding-top: 12px;
+            padding-top: 8px;
             -webkit-overflow-scrolling: touch;
-            min-height: 36px;
+            min-height: 32px;
         }
 
         .button-panel::-webkit-scrollbar {
             display: none;
         }
 
-        /* aタグのボタン化 */
-        .word-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
+        /* ウィジェットアプリにボタンと認識させない独自のdivボタン */
+        .word-btn-custom {
             padding: 6px 14px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -116,13 +113,16 @@
             border-radius: 16px;
             font-size: 11px;
             font-weight: bold;
-            text-decoration: none; /* リンクの下線を消す */
+            cursor: pointer;
             white-space: nowrap;
             transition: all 0.2s;
-            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            user-select: none;
         }
 
-        .word-btn.active {
+        .word-btn-custom.active {
             background: var(--accent-color);
             border-color: var(--accent-color);
             color: white;
@@ -134,15 +134,260 @@
             margin-left: 4px;
             opacity: 0.5;
             font-weight: normal;
+        }
+
+        /* 下部：入力欄 */
+        .input-panel-custom {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 6px;
+            cursor: pointer;
+        }
+
+        .search-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 11px;
             color: var(--text-main);
-            text-decoration: none;
-            display: inline-block;
-            padding: 2px;
+            outline: none;
+            box-sizing: border-box;
+            pointer-events: none; /* ウィジェット側での誤入力を防ぐ */
         }
 
-        .delete-icon:hover {
-            opacity: 1;
-            color: var(--danger-color);
+        .add-btn-custom {
+            padding: 6px 12px;
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
         }
 
-        /* 下部：入力・登録エリア（別々に完全に独立）
+        .status-bar {
+            font-size: 9px;
+            color: var(--text-sub);
+            display: flex;
+            justify-content: space-between;
+            margin-top: -4px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="widget-container" id="widget-box">
+    <div id="news-wrapper" class="news-scroll-wrapper">
+        <div class="news-card">
+            <div class="news-title-text">ニュースを取得中...🧭</div>
+            <div class="news-date">STANDBY</div>
+        </div>
+    </div>
+
+    <div class="button-panel" id="btn-panel"></div>
+
+    <div class="input-panel-custom" id="form-panel">
+        <input type="text" id="new-word-input" class="search-input" placeholder="ここをタップして新規ワードを追加...">
+        <div class="add-btn-custom">追加</div>
+    </div>
+    
+    <div class="status-bar">
+        <span id="status">システム起動完了 🧭</span>
+        <span style="opacity: 0.5;">※×でボタン削除</span>
+    </div>
+</div>
+
+<script>
+    const defaultWords = ["ポケモン", "Xiaomi", "宇宙", "AI", "ゲーム"];
+    let currentKeyword = "ポケモン";
+    let isStandardBrowser = false;
+
+    window.onload = function() {
+        // 通常のブラウザ（登録画面）か、ウィジェット内かを判別
+        isStandardBrowser = window.self === window.top;
+
+        if (isStandardBrowser) {
+            // ブラウザ表示のときは、直接入力できるようにキーボードを有効化
+            const inputEl = document.getElementById('new-word-input');
+            inputEl.removeAttribute('readonly');
+            inputEl.style.pointerEvents = "auto";
+            inputEl.placeholder = "新しい単語を入力...";
+
+            // ブラウザでのボタン追加処理を有効化
+            document.getElementById('form-panel').onclick = null;
+            document.querySelector('.add-btn-custom').onclick = function(e) {
+                addNewButton();
+            };
+            inputEl.onkeydown = function(e) {
+                if (e.key === 'Enter') {
+                    addNewButton();
+                }
+            };
+        } else {
+            // ウィジェット内表示のときは、タップしたらお気に入りを追加するために安全に自分のブラウザページを開く
+            document.getElementById('form-panel').onclick = function(e) {
+                window.open('https://akkunkamoyo.github.io/my_news/', '_blank');
+            };
+        }
+
+        let savedWords = JSON.parse(localStorage.getItem('my_news_words'));
+        if (!savedWords || savedWords.length === 0) {
+            savedWords = defaultWords;
+            localStorage.setItem('my_news_words', JSON.stringify(savedWords));
+        }
+
+        currentKeyword = localStorage.getItem('last_selected_word') || savedWords[0];
+
+        renderButtons();
+        huntWidgetNews(currentKeyword);
+    };
+
+    function renderButtons() {
+        const panel = document.getElementById('btn-panel');
+        panel.innerHTML = '';
+
+        const savedWords = JSON.parse(localStorage.getItem('my_news_words')) || defaultWords;
+
+        savedWords.forEach(word => {
+            const btn = document.createElement('div');
+            btn.className = `word-btn-custom ${word === currentKeyword ? 'active' : ''}`;
+            
+            // ボタンをタップしたときの処理
+            btn.onclick = function(e) {
+                // ウィジェットアプリにお節介でブラウザを立ち上げさせない工夫！
+                if (!isStandardBrowser) {
+                    e.preventDefault();
+                }
+                switchWord(word, btn);
+            };
+
+            btn.innerHTML = `
+                <span>${word}</span>
+                <span class="delete-icon" id="del-${word}">×</span>
+            `;
+            panel.appendChild(btn);
+
+            // 削除ボタンのイベント
+            document.getElementById(`del-${word}`).onclick = function(e) {
+                if (!isStandardBrowser) {
+                    e.preventDefault();
+                }
+                deleteButton(word);
+            };
+        });
+    }
+
+    function switchWord(keyword, btnElement) {
+        const buttons = document.querySelectorAll('.word-btn-custom');
+        buttons.forEach(btn => btn.classList.remove('active'));
+        btnElement.classList.add('active');
+
+        currentKeyword = keyword;
+        localStorage.setItem('last_selected_word', keyword);
+        huntWidgetNews(keyword);
+    }
+
+    function addNewButton() {
+        const input = document.getElementById('new-word-input');
+        const word = input.value.trim();
+
+        if (!word) return;
+
+        let savedWords = JSON.parse(localStorage.getItem('my_news_words')) || [];
+        
+        if (savedWords.includes(word)) {
+            input.value = '';
+            return;
+        }
+
+        savedWords.push(word);
+        localStorage.setItem('my_news_words', JSON.stringify(savedWords));
+        input.value = '';
+
+        currentKeyword = word;
+        localStorage.setItem('last_selected_word', word);
+        
+        renderButtons();
+        huntWidgetNews(word);
+    }
+
+    function deleteButton(word) {
+        if (!confirm(`「${word}」ボタンを削除しますか？`)) return;
+
+        let savedWords = JSON.parse(localStorage.getItem('my_news_words')) || [];
+        savedWords = savedWords.filter(w => w !== word);
+        localStorage.setItem('my_news_words', JSON.stringify(savedWords));
+
+        if (currentKeyword === word) {
+            currentKeyword = savedWords[0] || '';
+            localStorage.setItem('last_selected_word', currentKeyword);
+        }
+
+        renderButtons();
+        if (currentKeyword) {
+            huntWidgetNews(currentKeyword);
+        } else {
+            document.getElementById('news-wrapper').innerHTML = `
+                <div class="news-card">
+                    <div class="news-title-text">下の追加フォームからキーワードを登録してね！</div>
+                    <div class="news-date">EMPTY</div>
+                </div>
+            `;
+            document.getElementById('status').textContent = '登録なし';
+        }
+    }
+
+    async function huntWidgetNews(keyword) {
+        const wrapper = document.getElementById('news-wrapper');
+        const status = document.getElementById('status');
+
+        status.textContent = `「${keyword}」を読み込み中...`;
+
+        try {
+            const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
+            const apiLink = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
+
+            const response = await fetch(apiLink);
+            const data = await response.json();
+
+            if (data && data.status === 'ok' && data.items && data.items.length > 0) {
+                status.textContent = `「${keyword}」を表示中`;
+                wrapper.innerHTML = '';
+
+                const maxItems = Math.min(data.items.length, 12);
+                for (let i = 0; i < maxItems; i++) {
+                    const item = data.items[i];
+                    const title = item.title;
+                    const link = item.link;
+                    const pubDateText = item.pubDate;
+
+                    const card = document.createElement('div');
+                    card.className = 'news-card';
+
+                    const date = new Date(pubDateText);
+                    const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
+
+                    // ニュースタイトル（テキスト）をタップした時だけは該当のニュースサイトを開く
+                    card.innerHTML = `
+                        <div class="news-title-text" onclick="window.open('${link}', '_blank')">${title}</div>
+                        <div class="news-date">📅 ${formattedDate}</div>
+                    `;
+                    wrapper.appendChild(card);
+                }
+            } else {
+                status.textContent = '取得エラー（別のワードでお試しください）';
+            }
+        } catch (error) {
+            console.error(error);
+            status.textContent = '再試行してください';
+        }
+    }
+</script>
+
+</body>
+</html>
