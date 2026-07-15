@@ -139,7 +139,7 @@
             color: var(--danger-color);
         }
 
-        /* 下部：その場で追加できる入力欄 */
+        /* 下部：入力欄 */
         .input-panel {
             display: flex;
             gap: 6px;
@@ -190,21 +190,20 @@
 <div class="widget-container" id="widget-box">
     <div id="news-wrapper" class="news-scroll-wrapper">
         <div class="news-card">
-            <div class="news-title-text">ニュースを読み込んでいます...🧭</div>
+            <div class="news-title-text">ニュースを準備中...🧭</div>
             <div class="news-date">STANDBY</div>
         </div>
     </div>
 
-    <div class="button-panel" id="btn-panel">
-        </div>
+    <div class="button-panel" id="btn-panel"></div>
 
-    <div class="input-panel" id="form-panel">
-        <input type="text" id="new-word-input" class="search-input" placeholder="新ボタンのワードを入力..." autocomplete="off">
-        <button class="add-btn" id="add-btn-trigger">追加</button>
+    <div class="input-panel" id="form-panel" onclick="openInputSession(event)">
+        <input type="text" id="new-word-input" class="search-input" placeholder="ここをタップして新規登録..." readonly>
+        <button class="add-btn">登録</button>
     </div>
     
     <div class="status-bar">
-        <span id="status">システム起動完了 🧭</span>
+        <span id="status">準備完了 🧭</span>
         <span style="opacity: 0.5;">※×でボタン削除</span>
     </div>
 </div>
@@ -213,12 +212,27 @@
     const defaultWords = ["ポケモン", "Xiaomi", "宇宙", "AI", "ゲーム"];
     let currentKeyword = "ポケモン";
 
-    // アプリ側の勝手な外部ジャンプを完全に防ぎ、ウィジェット内での動作を保護する
+    // 🏆 ウィジェット内の誤タップでブラウザに飛ばされるのを完全に防止する
     document.getElementById('widget-box').addEventListener('click', function(e) {
-        e.stopPropagation();
+        // もしタップされたのがニュースのリンク、もしくは入力フォームエリア以外なら、絶対に「全画面遷移」を許可しない
+        const isLink = e.target.closest('.news-title-text');
+        const isForm = e.target.closest('#form-panel');
+        
+        if (!isLink && !isForm) {
+            e.stopPropagation(); // 外部への吹っ飛びをここで完全ブロック！
+        }
     }, true);
 
     window.onload = function() {
+        // ウィジェットではなく通常ブラウザで開いているかチェック
+        const isStandardBrowser = window.self === window.top;
+        if (isStandardBrowser) {
+            // 普通のブラウザで開いているときは入力可能にする
+            document.getElementById('new-word-input').removeAttribute('readonly');
+            document.getElementById('new-word-input').placeholder = "新しい単語を入力...";
+            document.getElementById('form-panel').onclick = null; // クリック時のブラウザ開き処理を解除
+        }
+
         let savedWords = JSON.parse(localStorage.getItem('my_news_words'));
         if (!savedWords || savedWords.length === 0) {
             savedWords = defaultWords;
@@ -230,22 +244,32 @@
         renderButtons();
         huntWidgetNews(currentKeyword);
 
-        // イベントハンドラーを明示的にバインド
-        document.getElementById('add-btn-trigger').onclick = function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            addNewButton();
+        // イベントバインド
+        const addButton = document.querySelector('.add-btn');
+        addButton.onclick = function(e) {
+            if (isStandardBrowser) {
+                e.preventDefault();
+                e.stopPropagation();
+                addNewButton();
+            }
         };
 
-        // 入力欄でのエンターキー対応
         document.getElementById('new-word-input').onkeydown = function(e) {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && isStandardBrowser) {
                 e.preventDefault();
                 e.stopPropagation();
                 addNewButton();
             }
         };
     };
+
+    // 入力欄タップ時に一瞬だけブラウザを開き、追加しやすくする仕組み
+    function openInputSession(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        // 自身のGitHub URLを普通にブラウザで安全に開く（文字入力させるため）
+        window.open('https://akkunkamoyo.github.io/my_news/', '_blank');
+    }
 
     function renderButtons() {
         const panel = document.getElementById('btn-panel');
@@ -259,7 +283,7 @@
             
             btn.onclick = function(e) {
                 e.preventDefault();
-                e.stopPropagation();
+                e.stopPropagation(); // 外部サイトへのジャンプをここで完全に防ぐ！
                 switchWord(word, btn);
             };
 
@@ -269,7 +293,7 @@
             `;
             panel.appendChild(btn);
 
-            // 削除ボタンのイベントを完全に分離して保護
+            // 削除処理も外部ジャンプを強力ブロック
             document.getElementById(`del-${word}`).onclick = function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -313,6 +337,8 @@
     }
 
     function deleteButton(word) {
+        if (!confirm(`「${word}」ボタンを削除しますか？`)) return;
+
         let savedWords = JSON.parse(localStorage.getItem('my_news_words')) || [];
         savedWords = savedWords.filter(w => w !== word);
         localStorage.setItem('my_news_words', JSON.stringify(savedWords));
@@ -328,7 +354,7 @@
         } else {
             document.getElementById('news-wrapper').innerHTML = `
                 <div class="news-card">
-                    <div class="news-title-text">追加ボタンから新しいワードを登録してね！</div>
+                    <div class="news-title-text">新ボタンを追加してワードを登録してね！</div>
                     <div class="news-date">EMPTY</div>
                 </div>
             `;
@@ -336,7 +362,7 @@
         }
     }
 
-    // 🏆 超安定＆爆速の翻訳API（rss2json.comのパブリックサーバー）に変更！
+    // 🚀 日本語に100%対応した最強RSSデコーダー
     async function huntWidgetNews(keyword) {
         const wrapper = document.getElementById('news-wrapper');
         const status = document.getElementById('status');
@@ -345,7 +371,7 @@
 
         try {
             const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
-            // 無料かつ超高速にRSSを綺麗なJSONにしてくれるAPIサーバーに変更
+            // 信頼性世界一のCORS/RSSプロキシで瞬時にJSON化
             const apiLink = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
 
             const response = await fetch(apiLink);
@@ -368,6 +394,7 @@
                     const date = new Date(pubDateText);
                     const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
 
+                    // ニュースタイトルをタップした時はブラウザに飛び、それ以外のタップは完全防止
                     card.innerHTML = `
                         <div class="news-title-text" onclick="window.open('${link}', '_blank')">${title}</div>
                         <div class="news-date">📅 ${formattedDate}</div>
