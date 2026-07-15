@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+                <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ニュース・ウィジェット（横スクロール版）</title>
+    <title>マイ・ニュース・ウィジェット</title>
     <style>
         :root {
             --bg-color: #111827; /* 高級感のあるダークモード */
@@ -18,115 +18,122 @@
             background-color: var(--bg-color);
             color: var(--text-main);
             margin: 0;
-            padding: 12px;
+            padding: 8px;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
         }
 
-        /* ウィジェット全体の枠（Xiaomiの横長サイズに最適化） */
+        /* ウィジェット全体の枠 */
         .widget-container {
             width: 100%;
             max-width: 480px;
             background: var(--card-bg);
-            padding: 14px;
-            border-radius: 24px;
+            padding: 12px;
+            border-radius: 20px;
             box-shadow: 0 8px 32px rgba(0,0,0,0.2);
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
         }
 
-        /* ニュースが横に並ぶスクロールエリア */
+        /* 横スクロールエリア */
         .news-scroll-wrapper {
             display: flex;
-            gap: 10px;
-            overflow-x: auto; /* 横スクロールを有効にする */
-            scroll-snap-type: x mandatory; /* スライドがピタッと止まるようにする */
-            padding-bottom: 8px;
-            -webkit-overflow-scrolling: touch; /* スマホでのスクロールを滑らかにする */
+            gap: 8px;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            padding-bottom: 4px;
+            -webkit-overflow-scrolling: touch;
         }
 
-        /* スクロールバーのデザイン（非表示にしてスッキリさせる） */
         .news-scroll-wrapper::-webkit-scrollbar {
-            display: none;
+            display: none; /* スクロールバーは非表示 */
         }
 
-        /* ニュースの見出しカード（横に並ぶ個々のパネル） */
+        /* ニュースカード */
         .news-card {
-            flex: 0 0 135px; /* カードの横幅を固定して横に並べる */
+            flex: 0 0 130px;
             scroll-snap-align: start;
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 10px;
-            border-radius: 14px;
+            padding: 8px;
+            border-radius: 12px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            height: 90px; /* ウィジェットに収まる高さ */
+            height: 80px;
             box-sizing: border-box;
-            transition: background 0.2s;
         }
 
-        .news-card:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        /* ニュースタイルのテキスト */
         .news-title-text {
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             line-height: 1.3;
             color: var(--text-main);
             display: -webkit-box;
-            -webkit-line-clamp: 4; /* 最大4行まで表示して、超えたら「...」にする */
+            -webkit-line-clamp: 4;
             -webkit-box-orient: vertical;
             overflow: hidden;
             text-decoration: none;
         }
 
         .news-date {
-            font-size: 9px;
+            font-size: 8px;
             color: var(--text-sub);
-            margin-top: 4px;
+            margin-top: 2px;
         }
 
-        /* 下部のボタン・ステータスエリア */
+        /* 下部の検索・操作エリア */
         .control-panel {
             display: flex;
+            gap: 6px;
             align-items: center;
-            justify-content: space-between;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
             padding-top: 8px;
         }
 
-        .status-text {
+        /* ホーム画面でも入力しやすい薄型入力欄 */
+        .search-input {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 6px 10px;
             font-size: 11px;
-            color: var(--text-sub);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 240px;
+            color: var(--text-main);
+            outline: none;
+            box-sizing: border-box;
         }
 
-        /* 更新ボタン */
-        .refresh-btn {
-            padding: 8px 16px;
+        .search-input:focus {
+            border-color: var(--accent-color);
+        }
+
+        /* 検索ボタン */
+        .search-btn {
+            padding: 6px 12px;
             background: var(--accent-color);
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 12px;
+            border-radius: 8px;
+            font-size: 11px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-            transition: transform 0.1s;
+            white-space: nowrap;
         }
 
-        .refresh-btn:active {
+        .search-btn:active {
             transform: scale(0.95);
+        }
+
+        .status-bar {
+            font-size: 9px;
+            color: var(--text-sub);
+            text-align: right;
+            margin-top: -4px;
         }
     </style>
 </head>
@@ -135,53 +142,56 @@
 <div class="widget-container">
     <div id="news-wrapper" class="news-scroll-wrapper">
         <div class="news-card">
-            <div class="news-title-text">ボタンを押すと、登録された最新ニュースがここに横並びで読み込まれます。</div>
-            <div class="news-date">HUNTING</div>
+            <div class="news-title-text">下の入力欄にワードを入力して「検索」を押してね！</div>
+            <div class="news-date">STANDBY</div>
         </div>
     </div>
 
     <div class="control-panel">
-        <div id="status" class="status-text">追跡ワード: 宇宙ロケット</div>
-        <button class="refresh-btn" onclick="huntWidgetNews()">更新</button>
+        <input type="text" id="widget-search-input" class="search-input" placeholder="例: ポケモン, AI, ガジェット" value="宇宙ロケット">
+        <button class="search-btn" onclick="huntWidgetNews()">検索</button>
     </div>
+    <div id="status" class="status-bar">準備完了 🧭</div>
 </div>
 
 <script>
-    // ウィジェットで追跡したいキーワード（ここを好きなワードに変えてね！）
-    const trackingKeyword = "宇宙ロケット";
-
-    // 画面が開いた時にも自動で1回読み込む
+    // 起動時に自動で初期ワード「宇宙ロケット」を検索
     window.onload = function() {
-        document.getElementById('status').textContent = `追跡ワード: ${trackingKeyword}`;
         huntWidgetNews();
     };
 
     async function huntWidgetNews() {
+        const input = document.getElementById('widget-search-input');
         const wrapper = document.getElementById('news-wrapper');
         const status = document.getElementById('status');
+        
+        const keyword = input.value.trim();
 
-        status.textContent = '探索中...🧭';
+        if (!keyword) {
+            status.textContent = 'ワードを入力してね！';
+            return;
+        }
+
+        status.textContent = `「${keyword}」を探索中...`;
 
         try {
-            const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(trackingKeyword)}&hl=ja&gl=JP&ceid=JP:ja`;
+            const targetUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keyword)}&hl=ja&gl=JP&ceid=JP:ja`;
             const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(targetUrl)}`;
 
             const response = await fetch(rss2jsonUrl);
             const data = await response.json();
 
             if (data.status === 'ok' && data.items.length > 0) {
-                status.textContent = `最新記事を取得しました！`;
+                status.textContent = `「${keyword}」の最新ニュースを取得！`;
                 wrapper.innerHTML = ''; // クリア
 
                 data.items.forEach(item => {
-                    // カードの作成
                     const card = document.createElement('div');
                     card.className = 'news-card';
 
                     const date = new Date(item.pubDate);
                     const formattedDate = `${date.getMonth()+1}/${date.getDate()}`;
 
-                    // カードの中身（クリックすると別タブでニュースが開く）
                     card.innerHTML = `
                         <a href="${item.link}" target="_blank" class="news-title-text">${item.title}</a>
                         <div class="news-date">📅 ${formattedDate}</div>
@@ -189,11 +199,11 @@
                     wrapper.appendChild(card);
                 });
             } else {
-                status.textContent = 'ニュースが見つかりませんでした。';
+                status.textContent = '見つかりませんでした。';
             }
         } catch (error) {
             console.error(error);
-            status.textContent = '通信エラーが発生しました。';
+            status.textContent = '通信エラー';
         }
     }
 </script>
