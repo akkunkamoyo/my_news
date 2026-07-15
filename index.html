@@ -27,7 +27,7 @@
             touch-action: manipulation;
         }
 
-        .widget-box-v3 {
+        .widget-box-v4 {
             width: 100%;
             max-width: 480px;
             background: var(--card-bg);
@@ -40,7 +40,7 @@
             gap: 10px;
         }
 
-        /* 横スクロールエリア */
+        /* 横スクロールエリア（ニュースカード） */
         .news-scroll-wrapper {
             display: flex;
             gap: 8px;
@@ -88,8 +88,8 @@
             margin-top: 2px;
         }
 
-        /* ボタン一覧エリア */
-        .button-panel-v3 {
+        /* お気に入りボタン専用エリア（横スクロール可能） */
+        .button-panel-v4 {
             display: flex;
             gap: 6px;
             overflow-x: auto;
@@ -101,12 +101,12 @@
             align-items: center;
         }
 
-        .button-panel-v3::-webkit-scrollbar {
+        .button-panel-v4::-webkit-scrollbar {
             display: none;
         }
 
-        /* ブラウザに絶対にボタンと誤認させないプレーンなdivボタン */
-        .word-item-v3 {
+        /* お気に入りボタン単体のスタイル */
+        .word-item-v4 {
             padding: 6px 14px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.15);
@@ -123,43 +123,43 @@
             user-select: none;
         }
 
-        .word-item-v3.active {
+        .word-item-v4.active {
             background: var(--accent-color);
             border-color: var(--accent-color);
             color: white;
             box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
         }
 
-        /* ⚙️ボタン設定専用のデザイン */
-        .setting-trigger-v3 {
-            padding: 6px 14px;
-            background: var(--manage-color);
-            border: 1px solid var(--manage-color);
-            color: white;
-            border-radius: 16px;
-            font-size: 11px;
-            font-weight: bold;
-            cursor: pointer;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            user-select: none;
-        }
-
-        .delete-icon {
-            font-size: 12px;
-            margin-left: 4px;
-            opacity: 0.5;
-            font-weight: normal;
-        }
-
-        /* ブラウザ起動時のみ表示される追加用パネル */
-        .browser-only-admin-panel {
-            display: none; /* ウィジェット表示時は完全に消去 */
-            gap: 6px;
-            align-items: center;
+        /* 【設定エリア】一番下部に固定して見切れないようにする */
+        .control-section-v4 {
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             padding-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* ⚙️ボタン設定（ホーム画面時のみ表示される） */
+        .setting-trigger-full {
+            width: 100%;
+            padding: 8px;
+            background: var(--manage-color);
+            color: white;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            user-select: none;
+            box-sizing: border-box;
+        }
+
+        /* ブラウザ起動時（設定画面）のみ表示される追加フォーム */
+        .browser-only-admin-form {
+            display: none; /* 初期状態は非表示 */
+            gap: 6px;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .search-input {
@@ -178,8 +178,8 @@
             border-color: var(--accent-color);
         }
 
-        .add-btn-v3 {
-            padding: 6px 12px;
+        .add-btn-v4 {
+            padding: 6px 16px;
             background: var(--accent-color);
             color: white;
             border: none;
@@ -188,6 +188,13 @@
             font-weight: bold;
             white-space: nowrap;
             cursor: pointer;
+        }
+
+        .delete-icon {
+            font-size: 12px;
+            margin-left: 4px;
+            opacity: 0.5;
+            font-weight: normal;
         }
 
         .status-bar {
@@ -201,7 +208,7 @@
 </head>
 <body>
 
-<div class="widget-box-v3" id="widget-box">
+<div class="widget-box-v4" id="widget-box">
     <div id="news-wrapper" class="news-scroll-wrapper">
         <div class="news-card">
             <div class="news-title-text">ニュースを取得中...🧭</div>
@@ -209,11 +216,17 @@
         </div>
     </div>
 
-    <div class="button-panel-v3" id="btn-panel"></div>
+    <div class="button-panel-v4" id="btn-panel"></div>
 
-    <div class="browser-only-admin-panel" id="admin-panel">
-        <input type="text" id="new-word-input" class="search-input" placeholder="新しい単語を入力...">
-        <div class="add-btn-v3" onclick="addNewButton()">追加</div>
+    <div class="control-section-v4">
+        <div class="setting-trigger-full" id="widget-setting-btn" onclick="openSettingPage()">
+            ⚙️ ボタン設定・変更はこちら
+        </div>
+
+        <div class="browser-only-admin-form" id="browser-admin-form">
+            <input type="text" id="new-word-input" class="search-input" placeholder="追加するキーワードを入力...">
+            <button class="add-btn-v4" onclick="addNewButton()">追加</button>
+        </div>
     </div>
     
     <div class="status-bar">
@@ -230,9 +243,14 @@
     window.onload = function() {
         isStandardBrowser = window.self === window.top;
 
+        const widgetSettingBtn = document.getElementById('widget-setting-btn');
+        const browserAdminForm = document.getElementById('browser-admin-form');
+
         if (isStandardBrowser) {
-            // ブラウザ表示のときのみ、入力欄と追加ボタンを表示
-            document.getElementById('admin-panel').style.display = "flex";
+            // ブラウザ表示のとき：
+            // 「⚙️ ボタン設定」ボタンを消し、代わりに「キーワード入力欄（検索バー）」を表示する
+            widgetSettingBtn.style.display = "none";
+            browserAdminForm.style.display = "flex";
             document.getElementById('help-text').textContent = "※×でボタン削除";
             
             document.getElementById('new-word-input').onkeydown = function(e) {
@@ -241,8 +259,10 @@
                 }
             };
         } else {
-            // ウィジェット表示のとき：入力欄を完全に画面から消去
-            document.getElementById('admin-panel').style.display = "none";
+            // ホーム画面（AnyWidget内）のとき：
+            // 検索バーを完全に消去し、「⚙️ ボタン設定」ボタンだけを表示する
+            widgetSettingBtn.style.display = "block";
+            browserAdminForm.style.display = "none";
             document.getElementById('help-text').textContent = "⚙️から登録/削除";
         }
 
@@ -258,16 +278,21 @@
         huntWidgetNews(currentKeyword);
     };
 
+    function openSettingPage() {
+        // 設定ページをブラウザで開く
+        window.open('https://akkunkamoyo.github.io/my_news/', '_blank');
+    }
+
     function renderButtons() {
         const panel = document.getElementById('btn-panel');
         panel.innerHTML = '';
 
         const savedWords = JSON.parse(localStorage.getItem('my_news_words')) || defaultWords;
 
-        // 1. お気に入りワードボタン
+        // お気に入りワードボタンを生成（お気に入りのみ並び、設定ボタンは混ざりません）
         savedWords.forEach(word => {
             const btn = document.createElement('div');
-            btn.className = `word-item-v3 ${word === currentKeyword ? 'active' : ''}`;
+            btn.className = `word-item-v4 ${word === currentKeyword ? 'active' : ''}`;
             
             btn.onclick = function(e) {
                 if (!isStandardBrowser) {
@@ -277,7 +302,7 @@
                 switchWord(word, btn);
             };
 
-            // ブラウザ表示のみ「×」ボタンを表示
+            // ブラウザ表示のときだけ「×」を表示
             if (isStandardBrowser) {
                 btn.innerHTML = `
                     <span>${word}</span>
@@ -296,19 +321,10 @@
                 };
             }
         });
-
-        // 2. 「⚙️ ボタン設定」を右端に追加
-        const manageBtn = document.createElement('div');
-        manageBtn.className = "setting-trigger-v3";
-        manageBtn.innerHTML = "⚙️ ボタン設定";
-        manageBtn.onclick = function(e) {
-            window.open('https://akkunkamoyo.github.io/my_news/', '_blank');
-        };
-        panel.appendChild(manageBtn);
     }
 
     function switchWord(keyword, btnElement) {
-        const buttons = document.querySelectorAll('.word-item-v3');
+        const buttons = document.querySelectorAll('.word-item-v4');
         buttons.forEach(btn => btn.classList.remove('active'));
         btnElement.classList.add('active');
 
